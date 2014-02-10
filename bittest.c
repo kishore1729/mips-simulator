@@ -7,6 +7,10 @@
 #define RS_MASK 0x1F000000
 #define RT_MASK 0x00F80000
 #define RD_MASK 0x0000F800
+#define CAT1_RT_MASK 0x001F0000
+#define CAT1_BASE_MASK 0x03E00000
+#define CAT1_RT_OFFSET 16
+#define CAT1_BASE_OFFSET 21
 #define CAT_OFFSET 28
 #define CAT1_OPCODE_OFFSET 26
 #define CAT2N3_OPCODE_OFFSET 16
@@ -24,44 +28,35 @@ int genInstrStr(unsigned int iword, char retStr[]){
 			opcode = (iword & CAT1_OPCODE_MASK)>>CAT1_OPCODE_OFFSET;
 			switch (opcode){
 				case 0x0: //J instruction
-					retStr[bufoffset++] = 'J';
-					retStr[bufoffset++] = ' ';
-					retStr[bufoffset++] = '#';
 					imm_val = (iword & 0x03FFFFFF)<<2;
-					while(imm_val/10 > 0){retStr[bufoffset++] = '0'+(imm_val%10);imm_val /= 10;}
-					retStr[bufoffset++] = '0'+imm_val;
+					snprintf(retStr, 32, "J #%d", imm_val);
 					break;
 				case 0x2: //BEQ instruction
-					retStr[bufoffset++] = 'B';
-					retStr[bufoffset++] = 'E';
-					retStr[bufoffset++] = 'Q';
-					retStr[bufoffset++] = ' ';
+					rs = (iword & CAT1_BASE_MASK)>>CAT1_BASE_OFFSET;
+					rt = (iword & CAT1_RT_MASK)>>CAT1_RT_OFFSET;
+					imm_val = (iword & IMME_MASK)<<2;
+					snprintf(retStr, 32, "BEQ R%d, R%d, #%d", rs, rt, imm_val);
 					break;
 				case 0x4: //BGTZ instruction
-					retStr[bufoffset++] = 'B';
-					retStr[bufoffset++] = 'G';
-					retStr[bufoffset++] = 'T';
-					retStr[bufoffset++] = 'Z';
-					retStr[bufoffset++] = ' ';
+					rs = (iword & CAT1_BASE_MASK)>>CAT1_BASE_OFFSET;
+					imm_val = (iword & IMME_MASK)<<2;
+					snprintf(retStr, 32, "BGTZ R%d, #%d", rs, imm_val);
 					break;
 				case 0x5: //BREAK instruction
-					retStr[bufoffset++] = 'B';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = 'E';
-					retStr[bufoffset++] = 'A';
-					retStr[bufoffset++] = 'K';
-					retStr[bufoffset++] = '\0';
+					snprintf(retStr, 32, "BREAK");
 					return 1;
 					break;
 				case 0x6: //SW instruction
-					retStr[bufoffset++] = 'S';
-					retStr[bufoffset++] = 'W';
-					retStr[bufoffset++] = ' ';
+					rs = (iword & CAT1_BASE_MASK)>>CAT1_BASE_OFFSET;
+					rt = (iword & CAT1_RT_MASK)>>CAT1_RT_OFFSET;
+					imm_val = (iword & IMME_MASK);
+					snprintf(retStr, 32, "SW R%d, %d(R%d)", rt, imm_val, rs);
 					break;
 				case 0x7: //LW instruction
-					retStr[bufoffset++] = 'L';
-					retStr[bufoffset++] = 'W';
-					retStr[bufoffset++] = ' ';
+					rs = (iword & CAT1_BASE_MASK)>>CAT1_BASE_OFFSET;
+					rt = (iword & CAT1_RT_MASK)>>CAT1_RT_OFFSET;
+					imm_val = (iword & IMME_MASK);
+					snprintf(retStr, 32, "LW R%d, %d(R%d)", rt, imm_val, rs);
 					break;
 				default: //error opcode
 					printf("Unimplemented opcode in category 1 used. This opcode is reserved.");
@@ -72,45 +67,25 @@ int genInstrStr(unsigned int iword, char retStr[]){
 			opcode = (iword & CAT2N3_OPCODE_MASK)>>CAT2N3_OPCODE_OFFSET;
 			switch (opcode){
 				case 0x0: //ADD instruction
-					retStr[bufoffset++] = 'A';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "ADD ");
 					break;
 				case 0x1: //SUB instruction
-					retStr[bufoffset++] = 'S';
-					retStr[bufoffset++] = 'U';
-					retStr[bufoffset++] = 'B';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "SUB ");
 					break;
 				case 0x2: //MUL instruction
-					retStr[bufoffset++] = 'M';
-					retStr[bufoffset++] = 'U';
-					retStr[bufoffset++] = 'L';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "MUL ");
 					break;
 				case 0x3: //AND instruction
-					retStr[bufoffset++] = 'A';
-					retStr[bufoffset++] = 'N';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "AND ");
 					break;
 				case 0x4: //OR instruction
-					retStr[bufoffset++] = 'O';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "OR ");
 					break;
 				case 0x5: //XOR instruction
-					retStr[bufoffset++] = 'X';
-					retStr[bufoffset++] = 'O';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "XOR ");
 					break;
 				case 0x6: //NOR instruction
-					retStr[bufoffset++] = 'N';
-					retStr[bufoffset++] = 'O';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "NOR ");
 					break;
 				default: //error opcode
 					printf("Unimplemented opcode in category 2 used. This opcode is reserved.");
@@ -119,49 +94,22 @@ int genInstrStr(unsigned int iword, char retStr[]){
 			rs = (iword & RS_MASK)>>RS_OFFSET;
 			rt = (iword & RT_MASK)>>RT_OFFSET;
 			rd = (iword & RD_MASK)>>RD_OFFSET;
-			retStr[bufoffset++] = 'R';
-			if(rd/10 > 0){retStr[bufoffset++] = '0'+(int)(rd/10);rd %= 10;}
-			retStr[bufoffset++] = '0'+rd;
-			retStr[bufoffset++] = ',';
-			retStr[bufoffset++] = ' ';
-			retStr[bufoffset++] = 'R';
-			if(rs/10 > 0){retStr[bufoffset++] = '0'+(int)(rs/10);rs %= 10;}
-			retStr[bufoffset++] = '0'+rs;
-			retStr[bufoffset++] = ',';
-			retStr[bufoffset++] = ' ';
-			retStr[bufoffset++] = 'R';
-			if(rt/10 > 0){retStr[bufoffset++] = '0'+(int)(rt/10);rt %= 10;}
-			retStr[bufoffset++] = '0'+rt;
+			snprintf(retStr+bufoffset, 32-bufoffset, "R%d, R%d, R%d", rd, rs, rt);
 			break;
 		case 0xe: //Category 3
 			opcode = (iword & CAT2N3_OPCODE_MASK)>>CAT2N3_OPCODE_OFFSET;
 			switch (opcode){
 				case 0x0: //ADDI instruction
-					retStr[bufoffset++] = 'A';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = 'I';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "ADDI ");
 					break;
 				case 0x1: //ANDI instruction
-					retStr[bufoffset++] = 'A';
-					retStr[bufoffset++] = 'N';
-					retStr[bufoffset++] = 'D';
-					retStr[bufoffset++] = 'I';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "ANDI ");
 					break;
 				case 0x2: //ORI instruction
-					retStr[bufoffset++] = 'O';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = 'I';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "ORI ");
 					break;
 				case 0x3: //XORI instruction
-					retStr[bufoffset++] = 'X';
-					retStr[bufoffset++] = 'O';
-					retStr[bufoffset++] = 'R';
-					retStr[bufoffset++] = 'I';
-					retStr[bufoffset++] = ' ';
+					bufoffset = snprintf(retStr, 32, "XORI ");
 					break;
 				default: //error opcode
 					printf("Unimplemented opcode in category 3 used. This opcode is reserved.");
@@ -170,25 +118,12 @@ int genInstrStr(unsigned int iword, char retStr[]){
 			rs = (iword & RS_MASK)>>RS_OFFSET;
 			rt = (iword & RT_MASK)>>RT_OFFSET;
 			imm_val = (iword & IMME_MASK);
-			retStr[bufoffset++] = 'R';
-			if(rt/10 > 0){retStr[bufoffset++] = '0'+(int)(rt/10);rt %= 10;}
-			retStr[bufoffset++] = '0'+rt;
-			retStr[bufoffset++] = ',';
-			retStr[bufoffset++] = ' ';
-			retStr[bufoffset++] = 'R';
-			if(rs/10 > 0){retStr[bufoffset++] = '0'+(int)(rs/10);rs %= 10;}
-			retStr[bufoffset++] = '0'+rs;
-			retStr[bufoffset++] = ',';
-			retStr[bufoffset++] = ' ';
-			retStr[bufoffset++] = '#';
-			while(imm_val/10 > 0){retStr[bufoffset++] = '0'+(int)(imm_val/10);imm_val %= 10;}
-			retStr[bufoffset++] = '0'+imm_val;
+			snprintf(retStr+bufoffset, 32-bufoffset, "R%d, R%d, #%d", rt, rs, imm_val);
 			break;
 		default: //error handling
 			printf("Unimplemented opcode category used. This opcode is reserved.");
 			break;
 	}
-	retStr[bufoffset++] = '\0';
 	return 0; // regular instruction	
 }
 
@@ -205,6 +140,8 @@ int main(int argc, char* argv[])
   unsigned char break_reached = 0; 
   int dataMem_address =0;
   char retStr[32]; //19 would be enough, but 32 is a nice number :D
+  int dataMem[32]; //Assumed max possible data limit
+  int *endOfValidData = dataMem;
   
   if(argc != 2){
 	printf("Incorrect input arguments");
@@ -251,16 +188,34 @@ int main(int argc, char* argv[])
 		  else { //break reached now in data memory
 			if(dataMem_address == 0) dataMem_address = prgMem_address;
 			fprintf(disfile, "\t%d\t%d\n", prgMem_address, instrword);
+			*endOfValidData = instrword;
+			endOfValidData++;
 		  }
 		  prgMem_address+=4;
-		  printf("%X\n",instrword);
 		  instrword = 0;
 		  shiftby =0;
 	  }      
   }
   fclose(infile);
   fclose(disfile);
-  fclose(simfile);
   fclose(interfile);
+  printf("Starting Simulation\n");
+  disfile = fopen("disassembly.txt", "r");
+  if (!disfile) {
+	printf("Invalid file name / file open error");
+	return 1;
+  }
+  interfile = fopen("binaryCodes.txt", "r");
+  if (!interfile) {
+	printf("Invalid file name / file open error");
+	return 1;
+  }
+  fprintf(simfile,"Data\n");
+  while(&dataMem[shiftby] != endOfValidData){
+	  if(shiftby%8 ==0) fprintf(simfile,"%d:\t",dataMem_address+4*shiftby);
+	  if((shiftby+1)%8==0) fprintf(simfile,"%d\n",dataMem[shiftby++]);
+	  else fprintf(simfile,"%d\t",dataMem[shiftby++]);
+  }
+  fclose(simfile);
   return 0;
 }
