@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h> //for void* malloc(size_t)
 
 #define CAT_MASK 0xE0000000
 #define CAT1_OPCODE_MASK 0x1C000000
@@ -17,6 +18,68 @@
 #define RS_OFFSET 24
 #define RT_OFFSET 19
 #define RD_OFFSET 11
+
+int simMIPS(char* disassembly, char* instrMemory, char* dataMemory, int instr_start_address, int data_start_address){
+	FILE *disfile;
+	FILE *simfile;
+	FILE *instrFile;
+	FILE *dataFile;
+	int *dataMem;
+	unsigned int *instrMem;
+	int count=0,shiftby=0;
+	unsigned int instr;
+	int data;
+	int instrCount,dataCount=0;
+	printf("Starting Simulation\n");
+	disfile = fopen(disassembly, "r");
+	if (!disfile) {
+		printf("Invalid file name / file open error");
+		return 1;
+	}
+	instrFile = fopen(instrMemory, "r");
+	if (!instrFile) {
+		printf("Invalid file name / file open error");
+		return 1;
+	}
+	dataFile = fopen(dataMemory, "r");
+	if (!dataFile) {
+		printf("Invalid file name / file open error");
+		return 1;
+	}
+	simfile = fopen("simulation.txt", "w");
+	if (!simfile) {
+		printf("Invalid file name / file open error");
+		return 1;
+	}
+	/* starting to read instruction and data entries into main memory */
+	while (EOF != (fscanf(instrFile,"%*[^\n]"), fscanf(instrFile,"%*c")))  ++instrCount;
+	instrMem = (unsigned int*)malloc(sizeof(unsigned int)*instrCount);
+	while (EOF != (fscanf(dataFile,"%*[^\n]"), fscanf(dataFile,"%*c")))  ++dataCount;
+	dataMem = (int*)malloc(sizeof(int)*dataCount);
+	rewind(instrFile);
+	rewind(dataFile);
+	for(count =0; count < instrCount; count++){
+		fscanf(instrFile, "%d", &instr);
+		instrMem[count]=instr;	
+	}
+	for(count =0; count < dataCount; count++){
+		fscanf(dataFile, "%d", &data);
+		dataMem[count]=data;	
+	}
+	/* Instruction and data loaded into memory*/
+	//fprintf(simfile, "--------------------\n");
+	fprintf(simfile, "Data\n");
+	while(shiftby != dataCount){
+		if(shiftby%8 ==0) fprintf(simfile,"%d:\t",data_start_address+4*shiftby);
+		if((shiftby+1)%8==0) fprintf(simfile,"%d\n",dataMem[shiftby++]);
+		else fprintf(simfile,"%d\t",dataMem[shiftby++]);
+	}
+	fclose(simfile);
+	fclose(instrFile);
+	fclose(dataFile);
+	fclose(disfile);
+	return 0;
+}
 
 int genInstrStr(unsigned int iword, char retStr[]){
 	int catValue = (iword & CAT_MASK)>>CAT_OFFSET;
@@ -131,8 +194,8 @@ int main(int argc, char* argv[])
 {
   FILE *infile;
   FILE *disfile;
-  FILE *simfile;
-  FILE *interfile;
+  FILE *instrMem;
+  FILE *dataMem;
   char c;
   unsigned int instrword = 0;
   int shiftby=0;
@@ -140,8 +203,6 @@ int main(int argc, char* argv[])
   unsigned char break_reached = 0; 
   int dataMem_address =0;
   char retStr[32]; //19 would be enough, but 32 is a nice number :D
-  int dataMem[32]; //Assumed max possible data limit
-  int *endOfValidData = dataMem;
   
   if(argc != 2){
 	printf("Incorrect input arguments");
@@ -158,13 +219,13 @@ int main(int argc, char* argv[])
 	printf("Invalid file name / file open error");
 	return 1;
   }
-  simfile = fopen("simulation.txt", "w");
-  if (!simfile) {
+  instrMem = fopen("instructionMemory.txt", "w");
+  if (!instrMem) {
 	printf("Invalid file name / file open error");
 	return 1;
   }
-  interfile = fopen("binaryCodes.txt", "w");
-  if (!interfile) {
+  dataMem = fopen("dataMemory.txt", "w");
+  if (!dataMem) {
 	printf("Invalid file name / file open error");
 	return 1;
   }
@@ -183,13 +244,12 @@ int main(int argc, char* argv[])
 		  if(break_reached == 0){ //break not yet reached, program memeory active
 			break_reached = genInstrStr(instrword, retStr);
 			fprintf(disfile, "\t%d\t%s\n", prgMem_address, retStr);
-			fprintf(interfile, "%d\n", instrword);
+			fprintf(instrMem, "%d\n", instrword);
 		  }
 		  else { //break reached now in data memory
 			if(dataMem_address == 0) dataMem_address = prgMem_address;
 			fprintf(disfile, "\t%d\t%d\n", prgMem_address, instrword);
-			*endOfValidData = instrword;
-			endOfValidData++;
+			fprintf(dataMem, "%d\n", instrword);
 		  }
 		  prgMem_address+=4;
 		  instrword = 0;
@@ -198,24 +258,7 @@ int main(int argc, char* argv[])
   }
   fclose(infile);
   fclose(disfile);
-  fclose(interfile);
-  printf("Starting Simulation\n");
-  disfile = fopen("disassembly.txt", "r");
-  if (!disfile) {
-	printf("Invalid file name / file open error");
-	return 1;
-  }
-  interfile = fopen("binaryCodes.txt", "r");
-  if (!interfile) {
-	printf("Invalid file name / file open error");
-	return 1;
-  }
-  fprintf(simfile,"Data\n");
-  while(&dataMem[shiftby] != endOfValidData){
-	  if(shiftby%8 ==0) fprintf(simfile,"%d:\t",dataMem_address+4*shiftby);
-	  if((shiftby+1)%8==0) fprintf(simfile,"%d\n",dataMem[shiftby++]);
-	  else fprintf(simfile,"%d\t",dataMem[shiftby++]);
-  }
-  fclose(simfile);
-  return 0;
+  fclose(instrMem);
+  fclose(dataMem);
+  return simMIPS("disassembly.txt", "instructionMemory.txt", "dataMemory.txt", 128, dataMem_address); 
 }
